@@ -6,6 +6,7 @@ const logger = require('morgan');
 const expressLayouts = require('express-ejs-layouts');
 
 const indexRouter = require('./routes/index');
+const apiRouter = require('./routes/api');
 
 const app = express();
 
@@ -59,6 +60,7 @@ app.use(async (req, res, next) => {
 });
 
 app.use('/', indexRouter);
+app.use('/api', apiRouter);
 
 // catch 404
 app.use(function(req, res, next) {
