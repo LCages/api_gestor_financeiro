@@ -1,136 +1,216 @@
 const express = require('express');
 const router = express.Router();
-const Financeiro = require('../models/financeiro.js');
+const Lancamentos = require('../models/lancamentos');
+const Cartoes = require('../models/cartoes');
 const { Op } = require('sequelize');
 
 
-// 📌 GET - listar todos
-router.get('/financeiro', async (req, res) => {
+// 📌 CRIAR CARTÃO
+router.post('/cartoes', async (req, res) => {
   try {
-    const dados = await Financeiro.findAll();
+    const { nome, cor, moeda} = req.body;
 
-    let receitas = 0;
-    let despesas = 0;
+    if (!nome) {
+      return res.status(400).json({ error: "Nome é obrigatório" });
+    }
 
-    dados.forEach(item => {
-      if (item.status === 1) receitas += item.valor;
-      else despesas += item.valor;
+    const cartoes = await Cartoes.create({
+      nome,
+      cor,
+      moeda
     });
 
-    const valor_total = receitas - despesas;
+    res.status(201).json(cartoes);
 
-    res.status(200).json({
-      success: true,
-      total: dados.length,
-      receitas,
-      despesas,
-      valor_total,
-      dados
-    });
-
-  } catch (erro) {
-    res.status(500).json({
-      success: false,
-      error: erro.message
-    });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
   }
 });
 
 
-// 📌 POST - criar lançamento
-router.post('/financeiro', async (req, res) => {
+// 📌 LISTAR CARTÕES
+router.get('/cartoes', async (req, res) => {
   try {
-    const { tipo, valor, status } = req.body;
-
-    const novo = await Financeiro.create({
-      tipo,
-      valor,
-      status
+    const cartoes = await Cartoes.findAll({
+      order: [['id', 'ASC']]
     });
 
-    res.status(201).json({
-      success: true,
-      message: 'Lançamento criado',
-      data: novo
-    });
+    res.json(cartoes);
 
-  } catch (erro) {
-    res.status(400).json({
-      success: false,
-      error: erro.message
-    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 });
 
-
-// 📌 DELETE - excluir
-router.delete('/financeiro/:id', async (req, res) => {
+// 📌 DELETAR CARTÃO
+router.delete('/cartoes/:id', async (req, res) => {
   try {
     const id = req.params.id;
 
-    const deletado = await Financeiro.destroy({
+    // 🔥 impede deletar se tiver lançamentos vinculados
+    const vinculos = await Lancamentos.count({
+      where: { cartoesId: id }
+    });
+
+    if (vinculos > 0) {
+      return res.status(400).json({
+        error: "Não é possível excluir: existem lançamentos nesse cartão"
+      });
+    }
+
+    const deletado = await Cartoes.destroy({
       where: { id }
     });
 
     if (!deletado) {
-      return res.status(404).json({
-        success: false,
-        message: 'Registro não encontrado'
-      });
+      return res.status(404).json({ error: "Cartão não encontrado" });
     }
 
-    res.status(200).json({
-      success: true,
-      message: 'Registro deletado com sucesso'
-    });
+    res.json({ message: "Cartão deletado com sucesso" });
 
-  } catch (erro) {
-    res.status(500).json({
-      success: false,
-      error: erro.message
-    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 });
 
 
-// 📌 GET - buscar
-router.get('/buscar', async (req, res) => {
+// 📌 LISTAR lancamentos (COM FILTRO DE CARTÃO 🔥)
+router.get('/lancamentos', async (req, res) => {
   try {
-    const busca = req.query.tipo || '';
+    const { cartoes } = req.query;
 
-    const dados = await Financeiro.findAll({
-      where: {
-        tipo: {
-          [Op.like]: `%${busca}%`
-        }
-      }
+    let where = {};
+
+    if (cartoes) {
+      where.cartoesId = cartoes;
+    }
+
+    const dados = await Lancamentos.findAll({
+      where,
+      include: Cartoes,
+      order: [['data', 'DESC']]
     });
 
     let receitas = 0;
     let despesas = 0;
 
     dados.forEach(item => {
-      if (item.status === 1) receitas += item.valor;
-      else despesas += item.valor;
+      const valor = Number(item.valor) || 0;
+
+      if (item.status === 'receita') receitas += valor;
+      else despesas += valor;
     });
 
-    const valor_total = receitas - despesas;
-
-    res.status(200).json({
-      success: true,
-      busca,
+    res.json({
       total: dados.length,
       receitas,
       despesas,
-      valor_total,
+      valor_total: receitas - despesas,
       dados
     });
 
-  } catch (erro) {
-    res.status(500).json({
-      success: false,
-      error: erro.message
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+
+// 📌 CRIAR LANÇAMENTO
+router.post('/lancamentos', async (req, res) => {
+  try {
+    const {
+      data,
+      categoria,
+      descricao,
+      valor,
+      status,
+      cartoesId
+    } = req.body;
+
+    // 🔥 validação melhor
+    if (!descricao || !valor || !status || !cartoesId) {
+      return res.status(400).json({ error: "Campos obrigatórios faltando" });
+    }
+
+    // 🔥 garante data sempre preenchida
+    const novaData = data ? data : new Date();
+
+    const novo = await Lancamentos.create({
+      data: novaData,
+      categoria,
+      descricao,
+      valor,
+      status,
+      cartoesId
     });
+
+    res.status(201).json(novo);
+
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+// 📌 DELETAR
+router.delete('/lancamentos/:id', async (req, res) => {
+  try {
+    const deletado = await Lancamentos.destroy({
+      where: { id: req.params.id }
+    });
+
+    if (!deletado) {
+      return res.status(404).json({ message: 'Não encontrado' });
+    }
+
+    res.json({ message: 'Deletado com sucesso' });
+
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+
+// 📌 BUSCAR (COM CARTÃO 🔥)
+router.get('/buscar', async (req, res) => {
+  try {
+    const busca = req.query.descricao || '';
+    const cartoes = req.query.cartoes;
+
+    let where = {
+      descricao: {
+        [Op.like]: `%${busca}%`
+      }
+    };
+
+    if (cartoes) {
+      where.cartoesId = cartoes;
+    }
+
+    const dados = await Lancamentos.findAll({
+      where,
+      include: Cartoes
+    });
+
+    let receitas = 0;
+    let despesas = 0;
+
+    dados.forEach(item => {
+      const valor = Number(item.valor) || 0;
+
+      if (item.status === 'receita') receitas += valor;
+      else despesas += valor;
+    });
+
+    res.json({
+      total: dados.length,
+      receitas,
+      despesas,
+      valor_total: receitas - despesas,
+      dados
+    });
+
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 });
 

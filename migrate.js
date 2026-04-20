@@ -1,6 +1,10 @@
-const sequelize = require('./config/database.js');
-const Financeiro = require('./models/financeiro.js');
+const sequelize = require('./config/database');
 
-sequelize.sync()
-  .then(() => console.log('Tabela criada com sucesso'))
+require('./models/cartoes');
+require('./models/lancamentos');
+
+//sequelize.sync({ force: true });
+
+sequelize.sync({ alter: true })
+  .then(() => console.log('Banco sincronizado'))
   .catch(err => console.error('Erro:', err));
