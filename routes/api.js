@@ -85,27 +85,59 @@ router.get('/lancamentos', async (req, res) => {
       where.cartoesId = cartoes;
     }
 
+    // 🔥 intervalo do mês atual
+    const hoje = new Date();
+
+    const inicioMes = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
+    const fimMes = new Date(hoje.getFullYear(), hoje.getMonth() + 1, 0, 23, 59, 59);
+
+    // 🔥 BUSCA TODOS (para tabela e saldo total)
     const dados = await Lancamentos.findAll({
       where,
       include: Cartoes,
       order: [['data', 'DESC']]
     });
 
+    // 🔥 BUSCA SOMENTE DO MÊS (para receitas/despesas)
+    const dadosMes = await Lancamentos.findAll({
+      where: {
+        ...where,
+        data: {
+          [Op.between]: [inicioMes, fimMes]
+        }
+      }
+    });
+
     let receitas = 0;
     let despesas = 0;
 
-    dados.forEach(item => {
+    dadosMes.forEach(item => {
       const valor = Number(item.valor) || 0;
 
       if (item.status === 'receita') receitas += valor;
       else despesas += valor;
     });
 
+    // 🔥 TOTAL GERAL (continua tudo)
+    let totalReceitas = 0;
+    let totalDespesas = 0;
+
+    dados.forEach(item => {
+      const valor = Number(item.valor) || 0;
+
+      if (item.status === 'receita') totalReceitas += valor;
+      else totalDespesas += valor;
+    });
+
     res.json({
       total: dados.length,
-      receitas,
-      despesas,
-      valor_total: receitas - despesas,
+
+      // 🔥 AGORA CORRETO
+      receitas,          // só mês atual
+      despesas,          // só mês atual
+
+      valor_total: totalReceitas - totalDespesas, // 🔥 total geral
+
       dados
     });
 
