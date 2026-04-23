@@ -22,7 +22,8 @@ const Lancamentos = sequelize.define('Lancamentos', {
       'Assinaturas',
       'Compras',
       'Passeio',
-      'Salário'
+      'Salário',
+      'Outros'
     ),
     allowNull: false
   },
@@ -42,6 +43,6 @@ const Lancamentos = sequelize.define('Lancamentos', {
 
 // RELAÇÃO
 Cartoes.hasMany(Lancamentos, { foreignKey: 'cartoesId' });
-Lancamentos.belongsTo(Cartoes, { foreignKey: 'cartoesid' });
+Lancamentos.belongsTo(Cartoes, { foreignKey: 'cartoesId' });
 
 module.exports = Lancamentos;
