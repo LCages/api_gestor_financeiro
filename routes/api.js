@@ -3,7 +3,7 @@ const router = express.Router();
 const Lancamentos = require('../models/lancamentos');
 const Cartoes = require('../models/cartoes');
 const { Op } = require('sequelize');
-
+const fetch = require('node-fetch');
 
 // 📌 CRIAR CARTÃO
 router.post('/cartoes', async (req, res) => {
@@ -211,6 +211,39 @@ router.get('/buscar', async (req, res) => {
 
   } catch (err) {
     res.status(500).json({ error: err.message });
+  }
+});
+
+// 📌 ROTA DE CÂMBIO DINÂMICA
+router.get('/cambio', async (req, res) => {
+  try {
+    let { from, to } = req.query;
+
+    // 🔥 padrão se não vier nada
+    if (!from || !to) {
+      from = 'EUR';
+      to = 'BRL';
+    }
+
+    const hoje = new Date();
+    const passado = new Date();
+    passado.setDate(hoje.getDate() - 30);
+
+    const formatar = (d) =>
+      new Date(d.getTime() - d.getTimezoneOffset() * 60000)
+        .toISOString()
+        .split("T")[0];
+
+    const url = `https://api.frankfurter.dev/v1/${formatar(passado)}..${formatar(hoje)}?from=${from}&to=${to}`;
+
+    const response = await fetch(url);
+    const data = await response.json();
+
+    res.json(data);
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Erro ao buscar câmbio" });
   }
 });
 
