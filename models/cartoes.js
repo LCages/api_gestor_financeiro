@@ -18,7 +18,7 @@ const Cartoes = sequelize.define('Cartoes', {
   moeda: {
     type: DataTypes.STRING,
     allowNull: false,
-    defaultValue: 'R$'
+    defaultValue: 'BRL'
   }
 });
 
