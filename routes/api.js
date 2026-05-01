@@ -183,6 +183,43 @@ router.post('/lancamentos', async (req, res) => {
   }
 });
 
+// 📌 ATUALIZAR LANÇAMENTO
+router.put('/lancamentos/:id', async (req, res) => {
+  try {
+    const id = req.params.id;
+
+    const {
+      data,
+      categoria,
+      descricao,
+      valor,
+      status,
+      cartoesId
+    } = req.body;
+
+    const atualizado = await Lancamentos.update(
+      {
+        data,
+        categoria,
+        descricao,
+        valor,
+        status,
+        cartoesId
+      },
+      { where: { id } }
+    );
+
+    if (atualizado[0] === 0) {
+      return res.status(404).json({ error: "Não encontrado" });
+    }
+
+    res.json({ message: "Atualizado com sucesso" });
+
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // 📌 DELETAR
 router.delete('/lancamentos/:id', async (req, res) => {
   try {
