@@ -32,7 +32,7 @@ const Lancamentos = sequelize.define('Lancamentos', {
     allowNull: false
   },
   valor: {
-    type: DataTypes.FLOAT,
+    type: DataTypes.DECIMAL(10,2),
     allowNull: false
   },
   status: {
