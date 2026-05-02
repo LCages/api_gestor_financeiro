@@ -3,7 +3,6 @@ const router = express.Router();
 const Lancamentos = require('../models/lancamentos');
 const Cartoes = require('../models/cartoes');
 const { Op } = require('sequelize');
-const fetch = require('node-fetch');
 
 // 📌 CRIAR CARTÃO
 router.post('/cartoes', async (req, res) => {
