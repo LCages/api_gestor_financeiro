@@ -5,6 +5,10 @@ const cookieParser = require('cookie-parser');
 const logger = require('morgan');
 const cors = require('cors');
 
+const express = require("express");
+const bcrypt = require("bcrypt");
+const jwt = require("jsonwebtoken");
+
 const apiRouter = require('./routes/api');
 
 const app = express();
@@ -24,11 +28,16 @@ app.use(express.static(path.join(__dirname, 'public')));
 // 🔥 ROTAS
 app.use('/api', apiRouter);
 
-// ❌ REMOVIDO:
-// - view engine
-// - layouts
-// - indexRouter
-// - res.render
+// 🔥 sua conexão com banco (ajusta se necessário)
+const { Pool } = require("pg");
+
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+});
+
+// 🔐 segredo do token (coloca no .env depois)
+const JWT_SECRET = "seu_segredo_super_secreto";
+
 
 // 🔥 404 JSON (agora API, não HTML)
 app.use((req, res, next) => {

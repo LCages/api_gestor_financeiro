@@ -19,7 +19,11 @@ const Cartoes = sequelize.define('Cartoes', {
     type: DataTypes.STRING,
     allowNull: false,
     defaultValue: 'BRL'
-  }
+  },
+  usuarioId: {
+  type: DataTypes.INTEGER,
+  allowNull: false
+}
 });
 
 module.exports = Cartoes;

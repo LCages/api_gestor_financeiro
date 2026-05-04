@@ -38,7 +38,11 @@ const Lancamentos = sequelize.define('Lancamentos', {
   status: {
     type: DataTypes.ENUM('receita', 'despesa'),
     allowNull: false
-  }
+  },
+  usuarioId: {
+  type: DataTypes.INTEGER,
+  allowNull: false
+}
 });
 
 // RELAÇÃO

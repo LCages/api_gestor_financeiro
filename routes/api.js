@@ -3,6 +3,9 @@ const router = express.Router();
 const Lancamentos = require('../models/lancamentos');
 const Cartoes = require('../models/cartoes');
 const { Op } = require('sequelize');
+const auth = require("../middleware/auth");
+
+router.use(auth);
 
 // 📌 CRIAR CARTÃO
 router.post('/cartoes', async (req, res) => {
@@ -16,7 +19,8 @@ router.post('/cartoes', async (req, res) => {
     const cartoes = await Cartoes.create({
       nome,
       cor,
-      moeda
+      moeda,
+      usuarioId: req.usuarioId
     });
 
     res.status(201).json(cartoes);
@@ -31,6 +35,7 @@ router.post('/cartoes', async (req, res) => {
 router.get('/cartoes', async (req, res) => {
   try {
     const cartoes = await Cartoes.findAll({
+      where: { usuarioId: req.usuarioId },
       order: [['id', 'ASC']]
     });
 
@@ -48,7 +53,10 @@ router.delete('/cartoes/:id', async (req, res) => {
 
     // 🔥 impede deletar se tiver lançamentos vinculados
     const vinculos = await Lancamentos.count({
-      where: { cartoesId: id }
+      where: { 
+        cartoesId: id,
+        usuarioId: req.usuarioId
+      }
     });
 
     if (vinculos > 0) {
@@ -58,7 +66,10 @@ router.delete('/cartoes/:id', async (req, res) => {
     }
 
     const deletado = await Cartoes.destroy({
-      where: { id }
+      where: { 
+        id, 
+        usuarioId: req.usuarioId 
+      }
     });
 
     if (!deletado) {
@@ -78,7 +89,9 @@ router.get('/lancamentos', async (req, res) => {
   try {
     const { cartoes } = req.query;
 
-    let where = {};
+    let where = {
+      usuarioId: req.usuarioId
+    };
 
     if (cartoes) {
       where.cartoesId = cartoes;
@@ -172,7 +185,8 @@ router.post('/lancamentos', async (req, res) => {
       descricao,
       valor,
       status,
-      cartoesId
+      cartoesId,
+      usuarioId: req.usuarioId
     });
 
     res.status(201).json(novo);
@@ -193,7 +207,7 @@ router.put('/lancamentos/:id', async (req, res) => {
       descricao,
       valor,
       status,
-      cartoesId
+      cartoesId,
     } = req.body;
 
     const atualizado = await Lancamentos.update(
@@ -205,8 +219,11 @@ router.put('/lancamentos/:id', async (req, res) => {
         status,
         cartoesId
       },
-      { where: { id } }
-    );
+      { where: { 
+        id, 
+        usuarioId: req.usuarioId 
+      } 
+    });
 
     if (atualizado[0] === 0) {
       return res.status(404).json({ error: "Não encontrado" });
@@ -223,7 +240,10 @@ router.put('/lancamentos/:id', async (req, res) => {
 router.delete('/lancamentos/:id', async (req, res) => {
   try {
     const deletado = await Lancamentos.destroy({
-      where: { id: req.params.id }
+      where: { 
+        id: req.params.id,
+        usuarioId: req.usuarioId
+      }
     });
 
     if (!deletado) {
@@ -245,6 +265,7 @@ router.get('/buscar', async (req, res) => {
     const cartoes = req.query.cartoes;
 
     let where = {
+      usuarioId: req.usuarioId,
       descricao: {
         [Op.like]: `%${busca}%`
       }
@@ -312,6 +333,92 @@ router.get('/cambio', async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Erro ao buscar câmbio" });
+  }
+});
+
+router.post("/register", async (req, res) => {
+  const { nome, email, senha } = req.body;
+
+  if (!nome || !email || !senha) {
+    return res.status(400).json({ error: "Preencha todos os campos" });
+  }
+
+  try {
+    // 🔎 verifica se já existe
+    const userExists = await pool.query(
+      "SELECT * FROM usuarios WHERE email = $1",
+      [email]
+    );
+
+    if (userExists.rows.length > 0) {
+      return res.status(400).json({ error: "Email já cadastrado" });
+    }
+
+    // 🔒 hash da senha
+    const senhaHash = await bcrypt.hash(senha, 10);
+
+    const result = await pool.query(
+      "INSERT INTO usuarios (nome, email, senha) VALUES ($1, $2, $3) RETURNING id, nome, email",
+      [nome, email, senhaHash]
+    );
+
+    const usuario = result.rows[0];
+
+    res.json({
+      usuario,
+    });
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Erro no cadastro" });
+  }
+});
+
+router.post("/login", async (req, res) => {
+  const { email, senha } = req.body;
+
+  if (!email || !senha) {
+    return res.status(400).json({ error: "Preencha email e senha" });
+  }
+
+  try {
+    const result = await pool.query(
+      "SELECT * FROM usuarios WHERE email = $1",
+      [email]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(400).json({ error: "Usuário não encontrado" });
+    }
+
+    const usuario = result.rows[0];
+
+    // 🔒 compara senha
+    const senhaValida = await bcrypt.compare(senha, usuario.senha);
+
+    if (!senhaValida) {
+      return res.status(400).json({ error: "Senha inválida" });
+    }
+
+    // 🔥 cria token
+    const token = jwt.sign(
+      { id: usuario.id },
+      JWT_SECRET,
+      { expiresIn: "7d" }
+    );
+
+    res.json({
+      usuario: {
+        id: usuario.id,
+        nome: usuario.nome,
+        email: usuario.email,
+      },
+      token,
+    });
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Erro no login" });
   }
 });
 
