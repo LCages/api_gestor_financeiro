@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const Lancamentos = require('../models/lancamentos');
 const Cartoes = require('../models/cartoes');
+const Usuarios = require('../models/usuarios');
 const { Op } = require('sequelize');
 const auth = require("../middleware/auth");
 const pool = require("../db");
@@ -17,32 +18,29 @@ router.post("/register", async (req, res) => {
   }
 
   try {
-    // 🔎 verifica se já existe
-    const userExists = await pool.query(
-      "SELECT * FROM usuarios WHERE email = $1",
-      [email]
-    );
+    const existe = await Usuarios.findOne({ where: { email } });
 
-    if (userExists.rows.length > 0) {
+    if (existe) {
       return res.status(400).json({ error: "Email já cadastrado" });
     }
 
-    // 🔒 hash da senha
     const senhaHash = await bcrypt.hash(senha, 10);
 
-    const result = await pool.query(
-      "INSERT INTO usuarios (nome, email, senha) VALUES ($1, $2, $3) RETURNING id, nome, email",
-      [nome, email, senhaHash]
-    );
-
-    const usuario = result.rows[0];
+    const usuario = await Usuarios.create({
+      nome,
+      email,
+      senha: senhaHash
+    });
 
     res.json({
-      usuario,
+      usuario: {
+        id: usuario.id,
+        nome: usuario.nome,
+        email: usuario.email
+      }
     });
 
   } catch (err) {
-    console.error(err);
     res.status(500).json({ error: "Erro no cadastro" });
   }
 });
@@ -55,28 +53,21 @@ router.post("/login", async (req, res) => {
   }
 
   try {
-    const result = await pool.query(
-      "SELECT * FROM usuarios WHERE email = $1",
-      [email]
-    );
+    const usuario = await Usuarios.findOne({ where: { email } });
 
-    if (result.rows.length === 0) {
+    if (!usuario) {
       return res.status(400).json({ error: "Usuário não encontrado" });
     }
 
-    const usuario = result.rows[0];
-
-    // 🔒 compara senha
     const senhaValida = await bcrypt.compare(senha, usuario.senha);
 
     if (!senhaValida) {
       return res.status(400).json({ error: "Senha inválida" });
     }
 
-    // 🔥 cria token
     const token = jwt.sign(
       { id: usuario.id },
-      JWT_SECRET,
+      process.env.JWT_SECRET,
       { expiresIn: "7d" }
     );
 
@@ -84,13 +75,12 @@ router.post("/login", async (req, res) => {
       usuario: {
         id: usuario.id,
         nome: usuario.nome,
-        email: usuario.email,
+        email: usuario.email
       },
-      token,
+      token
     });
 
   } catch (err) {
-    console.error(err);
     res.status(500).json({ error: "Erro no login" });
   }
 });

@@ -1,5 +1,6 @@
 const { DataTypes } = require('sequelize');
 const sequelize = require('../config/database');
+const Usuarios = require('./usuarios');
 
 const Cartoes = sequelize.define('Cartoes', {
   id: {
@@ -25,5 +26,9 @@ const Cartoes = sequelize.define('Cartoes', {
   allowNull: false
 }
 });
+
+///relação
+Usuarios.hasMany(Cartoes, { foreignKey: 'usuarioId' });
+Cartoes.belongsTo(Usuarios, { foreignKey: 'usuarioId' });
 
 module.exports = Cartoes;
