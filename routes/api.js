@@ -7,6 +7,14 @@ const auth = require("../middleware/auth");
 
 router.use(auth);
 
+const { Pool } = require("pg");
+
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+});
+
+module.exports = pool;
+
 // 📌 CRIAR CARTÃO
 router.post('/cartoes', async (req, res) => {
   try {
