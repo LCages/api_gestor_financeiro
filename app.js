@@ -41,4 +41,10 @@ app.use((err, req, res, next) => {
   });
 });
 
+
+// 🔥 ROTA DE PING (keep-alive)
+app.get('/ping', (req, res) => {
+  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
 module.exports = app;

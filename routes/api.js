@@ -5,7 +5,6 @@ const Cartoes = require('../models/cartoes');
 const Usuarios = require('../models/usuarios');
 const { Op } = require('sequelize');
 const auth = require("../middleware/auth");
-const pool = require("../db");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const JWT_SECRET = process.env.JWT_SECRET;
@@ -83,6 +82,13 @@ router.post("/login", async (req, res) => {
   } catch (err) {
     res.status(500).json({ error: "Erro no login" });
   }
+});
+
+// 📌 LOGOUT
+router.post("/logout", (req, res) => {
+  // JWT é stateless — o token é removido no cliente.
+  // Esta rota existe para log/auditoria ou futura blacklist.
+  res.json({ message: "Logout realizado com sucesso" });
 });
 
 router.use(auth);
